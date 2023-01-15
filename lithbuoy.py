@@ -33,6 +33,8 @@ from matplotlib.colors import LinearSegmentedColormap
 #Colormaps
 temp_data = np.loadtxt("colormap/roma.txt")
 CBtemp_map = LinearSegmentedColormap.from_list('CBtemp', temp_data[::-1])
+# Loading the look table
+table      = np.loadtxt('./database/DMM_HP')
 
 dens_data = np.loadtxt("colormap/lajolla.txt")
 CBdens_map = LinearSegmentedColormap.from_list('CBdens', dens_data[::-1])
@@ -209,6 +211,10 @@ for j in range(my):
 rho_init = np.ones(np.shape(xx))
 T_init = np.ones(np.shape(xx))
 
+## Make initial Vp and Vs distribustion (2D) 
+Vp_init = np.ones(np.shape(xx))
+Vs_init = np.ones(np.shape(xx))
+
 rho_init[0::, :] = rho_prof[0::]
 T_init[0::, :] = T_prof[0::]
 
@@ -361,6 +367,70 @@ def get_pressure(rho):
     P_calc[0::, 0::] = ((yy[0::, 0::]) * gy * rho[0::, 0::]) / 1e5   # Pa-> bar
 
     return P_calc  # return initial density distribution in bar
+#============================================================================
+# Func: Get Vp and Vs from P and T
+#============================================================================
+def lookup_vp_vs_L2_norm(P,T,table):
+    """
+    Input: P : bar, T : Kelvin, table: array holding the lookingup table
+    Output:
+    
+    This function is a bit accurate than the minimum of the L2 norm.
+    So, what I am doing is that first I look for the minimum of the L2 norm, then
+    I look for the difference between the observed velocity and node above and below.
+    In case if the L2 norm give "bulls eye" hit where observed velocity matches the
+    node velocity I pick the properties from that node. If not then I ask which way,
+    up of down, difference between the observed and node velocity is minimum and
+    take the average of the properties at the minimum L2 norm node and up or down node.
+    """
+    index=[]
+    Vp=[]
+    Vs=[]
+    # Calculating the distance
+    dist=np.array(((T-table[:,0])**2+(P-table[:,1])**2));
+    # index of the minimum distance
+    index=dist.argmin();
+
+    diff_P=table[index,1] - P
+    diff_P_up=table[index-1,1] - P
+    diff_P_down=table[index+1,1] - P
+
+    diff_T=table[index,0] - T
+    diff_T_up=table[index-1,0] - T
+    diff_T_down=table[index+1,0] - T
+
+    if diff_P==0 and diff_T==0:
+        Vp=table[index,3]
+        Vs=table[index,4]
+        #Dens=table[index,2]
+        #T=table[index,0]-273.0
+    elif diff_T_up<diff_T_down and diff_P_up<diff_P_down:
+        #Dens=(table[index,2]+table[index-1,2])/2
+        Vp=(table[index,3]+table[index-1,3])/2
+        Vs=(table[index,4]+table[index-1,4])/2
+        #T=-273.0+(table[index,0]+table[index-1,0])/2
+    else:
+        #Dens=(table[index,2]+table[index+1,2])/2
+        Vp=(table[index,3]+table[index+1,3])/2
+        Vs=(table[index,4]+table[index+1,4])/2
+        #T=-273.0+(table[index,0]+table[index+1,0])/2
+    return Vp,Vs
+#============================================================================
+# Func: Get Vp and Vs from P and T
+#============================================================================
+def get_VpVs(P_in,T_in,table):
+    ##
+    # Purpose: This subroutine calculates the Vp and Vs distribution in the
+    #          model box using a lookup table which is supplied as an argument to the function.
+    ##
+    ## Loop through all the indices of P and T array
+    m,n = np.shape(P_in)
+    Vp_calc = np.ones(np.shape(P_in))
+    Vs_calc = np.ones(np.shape(P_in))
+    for i in range(m):
+        for j in range(n):
+            Vp_calc[i][j],Vs_calc[i][j]=lookup_vp_vs_L2_norm(P_in[i][j],T_in[i][j]+273,table)
+    return Vp_calc,Vs_calc  # return initial density distribution in bar
 #============================================================================
 # Func: the effect of temp. and pressure on density 
 #============================================================================
@@ -546,6 +616,9 @@ dfdt_diffus_temp_old = np.zeros(np.shape(xx))
 rho_old = rho_init.copy()
 rho_adv_old = rho_adv_init.copy()
 rho_diffus_old = rho_diffus_init.copy()
+Vp_new = Vp_init.copy()
+Vs_new = Vs_init.copy()
+
 P_init = get_pressure(rho_init)  # initial dist. (bar)
 P_old = get_pressure(rho_init)  # preloop
 P_adv_old = get_pressure(rho_init)
@@ -614,10 +687,11 @@ for it in range(0, nt):
     rho_adv_new =imposeT(rho_adv_new_,rho_init)
 #    rho_adv_new=rho_adv_new_.copy()
 
-    rho_new=rho_adv_new.copy()
-    T_new =T_adv_new.copy()
-    P_new=get_pressure(rho_new)
-
+    rho_new = rho_adv_new.copy()
+    T_new = T_adv_new.copy()
+    P_new = get_pressure(rho_new)
+    Vp_new = get_VpVs(P_new,T_new,table)
+    Vs_new = get_VpVs(P_new,T_new,table)
 
     # Difference in density distribution #
     rho_diff =  np.subtract(rho_new,rho_init) #rho_new - rho_init
