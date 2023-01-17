@@ -104,7 +104,7 @@ for i in range(len(y_profile)):
 #===============================================================
 ## PLOT SETTING ##
 # Visualisation parameters
-vel_vec = 'no'  # yes or no for showing velocity arrows
+vel_vec = 'yes'  # yes or no for showing velocity arrows
 lab_contour = 'yes'
 quiv_skip = 2  # velocity vector arrows spacing
 

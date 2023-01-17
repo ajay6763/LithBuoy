@@ -38,15 +38,15 @@ Testing del_rho
 #
 #
 #man_type=mman
-mman=3
+mman=2
 ############################################
-experiment_number = 'manu2fix' #'delRho'+str(delrho[rr]) #'manu2' # for the .savefig title -- CHANGE to prevent overwriting
-velocity = 80  # mm/year
-nt = 50001     # nº of steps to run
-save_interval = 100000     # save every n step
-save_figure = False # True or False
-plot_im_subplots = False
-plot_check = False 
+experiment_number = 'lithseis_test' #'delRho'+str(delrho[rr]) #'manu2' # for the .savefig title -- CHANGE to prevent overwriting
+velocity = 5  # mm/year
+nt = 1000     # nº of steps to run
+save_interval = 10     # save every n step
+save_figure = True # True or False
+plot_im_subplots = True
+plot_check = True 
 ############################################
 
 ## PATH to save figures
@@ -55,10 +55,10 @@ plot_check = False
 #############################################
 #input parameters
 ## Mesh setup:
-h = 600e3               # height of model box [m]
-w = 1500e3              # width of model box [m]
-dx = 5e3                # discretization step [m]
-dy = 5e3
+h = 400e3               # height of model box [m]
+w = 1000e3              # width of model box [m]
+dx = 20e3                # discretization step [m]
+dy = 20e3
 angle=30
 buoy_ylim=[-7e12, 7e12]
 

@@ -34,7 +34,7 @@ from matplotlib.colors import LinearSegmentedColormap
 temp_data = np.loadtxt("colormap/roma.txt")
 CBtemp_map = LinearSegmentedColormap.from_list('CBtemp', temp_data[::-1])
 # Loading the look table
-table      = np.loadtxt('./database/DMM_HP')
+table      = np.loadtxt('databases/DMM_3',comments='#')
 
 dens_data = np.loadtxt("colormap/lajolla.txt")
 CBdens_map = LinearSegmentedColormap.from_list('CBdens', dens_data[::-1])
@@ -627,6 +627,7 @@ P_diffus_old = get_pressure(rho_init)
 T_old2=T_init.copy()
 rho_old2=rho_init.copy()
 P_old2=P_init.copy()
+Vp_init,Vs_init = get_VpVs(P_old2,T_old2,table)
 ## Determine Courant timestep criterion:##
 vxmax = (abs(vx)).max()
 vymax = (abs(vy)).max()
@@ -690,9 +691,9 @@ for it in range(0, nt):
     rho_new = rho_adv_new.copy()
     T_new = T_adv_new.copy()
     P_new = get_pressure(rho_new)
-    Vp_new = get_VpVs(P_new,T_new,table)
-    Vs_new = get_VpVs(P_new,T_new,table)
-
+    Vp_new,Vs_new = get_VpVs(P_new,T_new,table)
+    #Vs_new = get_VpVs(P_new,T_new,table)
+    Vs_diff = (Vs_new - Vs_init)*100/Vs_init
     # Difference in density distribution #
     rho_diff =  np.subtract(rho_new,rho_init) #rho_new - rho_init
 
@@ -780,6 +781,7 @@ for it in range(0, nt):
             ytick_label = [np.int(v) for v in np.arange(dmoho/1000, (h+50e3) / 1000,100)]
 #============================================================================        
             # Subplot of temperature and velocity
+            '''
             im1 = ax1.imshow(T_new[::-1],
                              extent=(0, w, 0, h),
                              #clim=(0, Tbottom),
@@ -794,6 +796,26 @@ for it in range(0, nt):
             divider = make_axes_locatable(ax1)
             cax = divider.append_axes("right", size="2%", pad=0.2)
             cbar = plt.colorbar(im1, cax=cax,ticks=np.linspace(500,1500,6))
+            cbar.ax.invert_yaxis()
+            cbar.ax.set_title('$^{\circ}C$',fontsize=11)
+            cbar.ax.tick_params(labelsize=12) 
+            ax1.axis('equal')
+            '''
+            # Subplot of Vs and temperature contours
+            im1 = ax1.imshow(Vs_new[::-1],
+                             extent=(0, w, 0, h),
+                             #clim=(0, Tbottom),
+                             interpolation='bilinear',
+                             cmap=CBtemp_map)
+            ax1.plot(xs, ys, 'k', alpha=0.5)
+            #ax1.set_ylim(0,600)
+            ax1.invert_yaxis()
+       
+            ax1.set_xticklabels(xtick_label,fontsize=12)
+            ax1.set_yticklabels(ytick_label,fontsize=12)
+            divider = make_axes_locatable(ax1)
+            cax = divider.append_axes("right", size="2%", pad=0.2)
+            cbar = plt.colorbar(im1, cax=cax,ticks=np.linspace(3,5,10))
             cbar.ax.invert_yaxis()
             cbar.ax.set_title('$^{\circ}C$',fontsize=11)
             cbar.ax.tick_params(labelsize=12) 
@@ -819,6 +841,7 @@ for it in range(0, nt):
             ax1.plot(x_plot,y_plot,'k--', alpha=0.4)
             ax5.plot(x_plot,y_plot,'k--', alpha=0.4)
 #============================================================================
+            '''
             # Subplot  density difference
             im5 = ax5.imshow(rho_diff[::-1],
                              extent=(0, w, 0, h),
@@ -835,6 +858,33 @@ for it in range(0, nt):
             # cbar.ax.invert_yaxis()
             ax5.plot(xs, ys, 'k', alpha=0.5)
             cbar.ax.set_title('$kgm^{-3}$',fontsize=12)
+            cbar.ax.tick_params(labelsize=12) 
+            ax5.set_title(mantle_type+ r" $\Delta \rho$"+', t=' + str("%.2f" % tmyrs) + ' Myr, tstep =' +
+                          str(it + 1) + ', v=' + str(velocity) + '$mm$ $yr^{-1}$'+
+                          r", $\Delta \rho_{LAB}$="+str("%.0f" % drho_lab),fontsize=15)
+                          #r", $\Delta \rho_{LAB}$="+str("%.0f" % delrho[rr]),fontsize=15)
+            ax5.set_xlabel('Distance in x-direction ($km$)',fontsize=14)
+            ax5.set_ylabel('Depth ($km$)',fontsize=14)
+            ax5.axis('equal')
+            ax5.set_xlim(0,w)
+            ax5.set_ylim(h,0)
+            '''
+            # Subplot  Vs difference
+            im5 = ax5.imshow(Vs_diff[::-1],
+                             extent=(0, w, 0, h),
+                             clim=(-5, 5),
+                             interpolation='bilinear',
+                             cmap=plt.cm.get_cmap('RdBu', 11))  # , norm=MidpointNormalize(midpoint=0.))
+            ax5.invert_yaxis()
+            ax5.set_xticklabels(xtick_label,fontsize=12)
+            ax5.set_yticklabels(ytick_label,fontsize=12)
+            divider = make_axes_locatable(ax5)
+            cax5 = divider.append_axes("right", size="2%", pad=0.2)
+            cbar = plt.colorbar(im5, cax=cax5, extend='both')
+            
+            # cbar.ax.invert_yaxis()
+            ax5.plot(xs, ys, 'k', alpha=0.5)
+            cbar.ax.set_title('$%Vs$',fontsize=12)
             cbar.ax.tick_params(labelsize=12) 
             ax5.set_title(mantle_type+ r" $\Delta \rho$"+', t=' + str("%.2f" % tmyrs) + ' Myr, tstep =' +
                           str(it + 1) + ', v=' + str(velocity) + '$mm$ $yr^{-1}$'+
