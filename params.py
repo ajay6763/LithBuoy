@@ -41,7 +41,7 @@ Testing del_rho
 mman=2
 ############################################
 experiment_number = 'lithseis_test' #'delRho'+str(delrho[rr]) #'manu2' # for the .savefig title -- CHANGE to prevent overwriting
-velocity = 5  # mm/year
+velocity = 50  # mm/year
 nt = 1000     # nº of steps to run
 save_interval = 10     # save every n step
 save_figure = True # True or False

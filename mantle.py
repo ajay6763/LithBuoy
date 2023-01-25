@@ -11,11 +11,19 @@ Created 21/08/2019
 """
 
 import params  #import input file
+import numpy as np
+from scipy import interpolate
 
 #____________0_________1_________2___________3____________4_________5_________6_______7______8_____
 mantle = ['Archon', 'Proton', 'Tecton', 'Ocean30ma','Ocean120ma','slab80','slab160','oc60','oc110']
 mantle_type = mantle[params.mman]#mantle[params.man_type] #[mman] #'Ocean30ma'  # Type of mantle (Tecton, Archon,Proton)
+ak135 = np.loadtxt('./databases/ak135f.txt',skiprows=1)
+ak135_P = 9.8*ak135[:,0]*1e3*ak135[:,1]*1e3*1e-5
+pressure_inter = interpolate.interp1d(ak135[:,0],ak135_P)
+ak135_Vs_inter = interpolate.interp1d(ak135[:,0],ak135[:,3])
+ak135_Vp_inter = interpolate.interp1d(ak135[:,0],ak135[:,3])
 
+#depth_inter = interpolate.interp1d(ak135_P,ak135[:,0])
 #########################################################
 ## Set up for different mantle type ##
 
@@ -55,6 +63,9 @@ if (mantle_type=='slab160'):
 
 
 if (mantle_type=='oc60'): #slab+thickness
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
     dlab = 70e3  # m  
     dmoho=10e3
     Tlab = 1300     # [ºC]
@@ -77,6 +88,9 @@ if (mantle_type=='oc60'): #slab+thickness
     drhodP_asth = 0.0044
     
 if (mantle_type=='oc110'):
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
     dlab = 110e3  # m  
     dmoho=10e3
     Tlab = 1300     # [ºC]
@@ -99,6 +113,9 @@ if (mantle_type=='oc110'):
     drhodP_asth = 0.0044
 
 if (mantle_type=='slab80'): #slab+thickness
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
     dlab = 120e3#200e3  # m  
     dmoho=40e3
     Tlab = 1300     # [ºC]
@@ -122,6 +139,9 @@ if (mantle_type=='slab80'): #slab+thickness
     drhodP_asth = 0.0044
     
 if (mantle_type=='slab160'): #slab+thickness
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
     dlab = 200e3#200e3  # m  
     dmoho=40e3
     Tlab = 1300     # [ºC]
@@ -146,6 +166,9 @@ if (mantle_type=='slab160'): #slab+thickness
 
 #### Archon (Arc_3 Griffin)
 if (mantle_type=='Archon'):
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/Arc_3_HP',comments='#')
     dlab = 200e3#200e3  # m  
     dmoho=40e3
     Tlab = 1300     # [ºC]
@@ -174,6 +197,9 @@ if (mantle_type=='Archon'):
 
 #### Tecton (Tc_1 Griffin)
 if (mantle_type=='Tecton'):  
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/Tc_1_HP',comments='#')
     dlab = 120e3  # m  
     dmoho=40e3
     Tlab = 1300     # [ºC]
@@ -201,6 +227,9 @@ if (mantle_type=='Tecton'):
     drhodP_asth = 0.0044
 
 if (mantle_type=='Proton'):
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/Pr_1_HP',comments='#')
     dlab = 150e3  # m  
     dmoho=40e3   
     Tlab = 1300     # [ºC]
@@ -228,6 +257,9 @@ if (mantle_type=='Proton'):
 
 
 if (mantle_type=='Ocean30ma'):
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
     dlab = 70e3  # m  
     dmoho=10e3
     Tlab = 1300     # [ºC]
@@ -250,6 +282,9 @@ if (mantle_type=='Ocean30ma'):
     drhodP_asth = 0.0044
 
 if (mantle_type=='Ocean120ma'):
+    # Loading the look table
+    asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+    lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
     dlab = 110e3  # m  
     dmoho=10e3
     Tlab = 1300     # [ºC]

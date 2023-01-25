@@ -28,208 +28,21 @@ import pickle
 import matplotlib.ticker as tkr
 #from Stokes2D import Stokes2Dfunc 
 from matplotlib.colors import LinearSegmentedColormap
+import V2RhoT_gibbs_lib as V2RhoT_gibbs_lib
 #plt.rcParams["font.family"] = "Times New Roman"
 #plt.rcParams['mathtext.fontset'] = u'cm'
 #Colormaps
 temp_data = np.loadtxt("colormap/roma.txt")
 CBtemp_map = LinearSegmentedColormap.from_list('CBtemp', temp_data[::-1])
 # Loading the look table
-table      = np.loadtxt('databases/DMM_3',comments='#')
+#asth_tabel      = np.loadtxt('databases/DMM_3',comments='#')
+#lith_tabel      = np.loadtxt('databases/DMM_3',comments='#')
 
 dens_data = np.loadtxt("colormap/lajolla.txt")
 CBdens_map = LinearSegmentedColormap.from_list('CBdens', dens_data[::-1])
 
 rcParams['figure.figsize'] = (15, 8)
 rcParams['font.size'] = 8
-
-
-##############################
-# INPUT PARAMETERS
-#############################
-import params  #import input file
-import mantle
-
-"""
-For sequential run, BASH Script
-Testing del_rho 
-"""
-#mman = np.int(sys.argv[1])
-#velocity = np.int(sys.argv[2])
-#rr=np.int(sys.argv[3]) # prints var1)
-
-#============================================================================
-experiment_number = params.experiment_number # for the .savefig title -- CHANGE to prevent overwriting
-velocity = params.velocity         # 4 20 40 60 80mm/year_
-nt = params.nt                 # nº of steps to run
-save_interval = params.save_interval        # save every n step
-save_figure = params.save_figure #True       # True or False
-plot_im_subplots = params.plot_im_subplots
-plot_check = params.plot_check 
-
-## Model domain setup
-h = params.h             # height of model box [m]
-w = params.w             # width of model box [m]
-dx = params.dx               # discretization step [m]
-dy = params.dy
-angle=params.angle
-alpha = np.deg2rad(angle)  # Subduction angle
-buoy_ylim=params.buoy_ylim
-box_moho = 0e3             # Moho depth (w.r.t model box) (crust/mantle) [m]
-hinge_ax = 350e3        # the starting point of deviation
-
-## Thermal parameters ##
-k_lith = params.k_lith  # Thermal conductivity [W/m.K]
-Cp = params.Cp  # Specific heat capacity[J/K*kg]
-kappa_lith = params.kappa_lith
-kappa_asth = params.kappa_asth
-#============================================================================
-## Mantle parameters from mantly.py
-mantle_type=mantle.mantle_type
-dlab=mantle.dlab 
-dmoho=mantle.dmoho
-Tlab=mantle.Tlab
-Tmoho=mantle.Tmoho
-Tbottom=mantle.Tbottom
-ref_depth_lith=mantle.ref_depth_lith
-ref_rho_lith=mantle.ref_rho_lith
-ref_P_lith=mantle.ref_P_lith
-ref_T_lith=mantle.ref_T_lith
-drhodT_lith=mantle.drhodT_lith
-drhodP_lith=mantle.drhodP_lith
-dT_lith=mantle.dT_lith
-ref_depth_asth=mantle.ref_depth_asth
-ref_rho_asth=mantle.ref_rho_asth
-dT_asth=mantle.dT_asth
-ref_P_asth=mantle.ref_P_asth
-ref_T_asth=mantle.ref_T_asth
-drhodT_asth=mantle.drhodT_asth
-drhodP_asth=mantle.drhodP_asth
-#============================================================================
-# Slice depth profile
-slice_pos1 = 20e3  # the position of the slice along x-axis in m
-slice_pos2 = hinge_ax-50e3
-slice_sec1 = int(slice_pos1 / dx)
-slice_sec2 = int(slice_pos2 / dx)
-slice_diff = 'no'  # yes or no for plotting differene in T and rho wrt initial
-x_profile=[]
-y_profile=[]
-for i in range(np.int(h/dy)+1):
-    x_profile.append(np.int(slice_sec2+(i/np.tan(alpha)))) #dx int(x_profile[i-1] + dy*np.tan(np.deg2rad(90- alpha)))
-    y_profile.append(np.int(i))
-y_plot=[]
-x_plot=[]
-for i in range(len(x_profile)):
-    x_plot.append(x_profile[i]*dx )
-for i in range(len(y_profile)):
-    y_plot.append(i*dy)
-#============================================================================
-## PLOT SETTING 
-# Visualisation parameters
-vel_vec = 'no'  # yes or no for showing velocity arrows
-lab_contour = 'yes'
-quiv_skip = 2  # velocity vector arrows spacing
-
-#============================================================================
-## PATH to files
-fig_path= os.getcwd()+'/data/%s_%s_vel%d/subplots/' % (experiment_number,mantle_type,velocity)
-dat_path= os.getcwd()+'/data/%s_%s_vel%d/' % (experiment_number,mantle_type,velocity)
-csv_path= os.getcwd()+'/csv/' 
-dir1 = os.path.expanduser(fig_path)
-dir2 = os.path.expanduser(dat_path)
-dir3 = os.path.expanduser(csv_path)
-if not os.path.exists(dir1):
-    os.makedirs(dir1)
-if not os.path.exists(dir2):
-    os.makedirs(dir2)
-if not os.path.exists(dir3):
-    os.makedirs(dir3)
-#============================================================================
-# Initialisation and setting up
-#============================================================================
-# Mesh setup:
-nx = (w / dx) + 1
-ny = (h / dy) + 1
-x = np.linspace(0, np.int(params.w), np.int(nx))  # array for the finite difference mesh
-y = np.linspace(0, np.int(params.h), np.int(ny))
-[xx, yy] = np.meshgrid(x, y)
-
-secinmyr = 1e6 * 365 * 24 * 3600   # amount of seconds in 1 Myr
-t = 0                 # set initial time to zero
-
-# Velocity definition
-# Define solid rotation velocity field:
-tau = 100 * secinmyr      # 100-Myr convection overturn period in seconds
-v0 = 2 * np.pi / tau       # angular velocity (in rad/sec)
-xh = xx + 0.5 * h          # x-distances to horz middle of mesh (on xx mesh)
-yh = yy + 0.5 * h
-vx = np.zeros(np.shape(xx))
-vy = np.zeros(np.shape(xx))
-
-slab_thickness = dlab-dmoho 
-#dT_lith=(Tlab-Tmoho)/(slab_thickness) 
-#dT_asth=(Tbottom-Tlab)/(h-dlab) 
-beg_depth = 0#np.int(dmoho/dy)
-dbottom = h
-k_asth = 1.9#(k_lith * dT_lith) / dT_asth
-
-# Velocity
-pres_vel = velocity * 1e-3 / (365 * 24 * 3600)
-# Vel. at dipping angle in the haning slab
-# Need resultant to be the same as the pres_vel so it needs to be splitted
-# into x- and z- component
-pres_vx = pres_vel * np.cos(alpha)
-pres_vy = pres_vel * np.sin(alpha)
-
-#============================================================================
-## Make temperature profile (1D)##
-[my, mx] = np.shape(xx)
-T_prof = np.ones((my, 1))
-
-T_prof[0:np.int(slab_thickness / dy) + 1] = np.reshape((Tmoho + dT_lith * \
-                                                            (yy[0:np.int(slab_thickness/ dy)+1 , 0])), \
-                                                            (np.int((slab_thickness + dy) / dy), 1))
-
-T_prof[np.int(slab_thickness / dy) + 1:np.int(h / dy) + 1] = np.reshape((T_prof[np.int(slab_thickness / dy)] + dT_asth * 
-                                                            (yy[np.int(slab_thickness/dy)+1:np.int(h/dy)+1, 0] - slab_thickness)), \
-                                                            (np.int((h+dy)/dy - (slab_thickness+dy)/dy),1))
-
-## Make density profile (1D) ##
-T = T_prof[:]
-rho_prof = np.ones((my, 1))
-P = np.ones((my, 1))
-
-for j in range(my):
-    if(yy[j, 0] >= box_moho and yy[j, 0] <= slab_thickness):
-        P[j] = (ref_rho_lith * 9.8 * yy[j, 0]) / 1e5
-        rho_prof[j] = ref_rho_lith+(T[j]-ref_T_lith)*drhodT_lith+(P[j]-ref_P_lith)*drhodP_lith   
-
-    if(yy[j, 0] > slab_thickness and yy[j, 0] <= h):
-        P[j] = (ref_rho_asth * 9.8 * yy[j, 0]) / 1e5
-        rho_prof[j] =  ref_rho_asth+(T[j]-ref_T_asth)*drhodT_asth+(P[j]-ref_P_asth)*drhodP_asth #  +
-
-## Make initial temp. and density distribustion (2D) 
-rho_init = np.ones(np.shape(xx))
-T_init = np.ones(np.shape(xx))
-
-## Make initial Vp and Vs distribustion (2D) 
-Vp_init = np.ones(np.shape(xx))
-Vs_init = np.ones(np.shape(xx))
-
-rho_init[0::, :] = rho_prof[0::]
-T_init[0::, :] = T_prof[0::]
-
-drho_lab = int(rho_init[int((slab_thickness+dy)/dy),1] - rho_init[(int((slab_thickness)/dy)),1]) #int(rho_prof[np.where(yy==dlab)[0][-1]+1]) - int(rho_prof[np.where(yy==dlab)[0][-1]-1])
-print (drho_lab)
-
-yy_prep = yy[:,0]+dmoho
-dfout=np.zeros([len(yy_prep),3])
-dfout[:,0] = yy_prep[:]
-dfout[:,1] = T_init[:,0]
-dfout[:,2] = rho_init[:,0]
-
-print("T-profile saved in directory %s" % dir2)
-os.chdir(dir2)
-np.savetxt('Trho_%s_%s_vel_%d.txt' % (mantle_type, experiment_number,velocity),dfout,delimiter=',')
 
 #============================================================================
 
@@ -415,10 +228,7 @@ def lookup_vp_vs_L2_norm(P,T,table):
         Vs=(table[index,4]+table[index+1,4])/2
         #T=-273.0+(table[index,0]+table[index+1,0])/2
     return Vp,Vs
-#============================================================================
-# Func: Get Vp and Vs from P and T
-#============================================================================
-def get_VpVs(P_in,T_in,table):
+def get_VpVs_inti(P_in,T_in,asth_tabel,lith_tabel):
     ##
     # Purpose: This subroutine calculates the Vp and Vs distribution in the
     #          model box using a lookup table which is supplied as an argument to the function.
@@ -429,7 +239,31 @@ def get_VpVs(P_in,T_in,table):
     Vs_calc = np.ones(np.shape(P_in))
     for i in range(m):
         for j in range(n):
-            Vp_calc[i][j],Vs_calc[i][j]=lookup_vp_vs_L2_norm(P_in[i][j],T_in[i][j]+273,table)
+            if (yy[i, j] <= dlab):
+                Vp_calc[i][j],Vs_calc[i][j]=lookup_vp_vs_L2_norm(P_in[i][j],T_in[i][j]+273,lith_tabel)
+            else:
+                Vp_calc[i][j],Vs_calc[i][j]=lookup_vp_vs_L2_norm(P_in[i][j],T_in[i][j]+273,asth_tabel)
+    return Vp_calc,Vs_calc  # return initial density distribution in bar
+
+
+#============================================================================
+# Func: Get Vp and Vs from P and T
+#============================================================================
+def get_VpVs(P_in,T_in,velocity,table):
+    ##
+    # Purpose: This subroutine calculates the Vp and Vs distribution in the
+    #          model box using a lookup table which is supplied as an argument to the function.
+    ##
+    ## Loop through all the indices of P and T array
+    m,n = np.shape(P_in)
+    Vp_calc = np.copy(Vp_init) #np.ones(np.shape(P_in))
+    Vs_calc = np.copy(Vs_init) #np.ones(np.shape(P_in))
+    for i in range(m):
+        for j in range(n):
+            if (velocity[i, j] > 0.):
+                Vp_calc[i][j],Vs_calc[i][j]=lookup_vp_vs_L2_norm(P_in[i][j],T_in[i][j]+273,table)
+            else:
+                pass
     return Vp_calc,Vs_calc  # return initial density distribution in bar
 #============================================================================
 # Func: the effect of temp. and pressure on density 
@@ -581,6 +415,212 @@ def imposeT(new_temp, init_temp):
     return T_adjust0
 ## -----------------END OF SUB-ROUTINES DEFINITIONS --------------------- ##
 
+##############################
+# INPUT PARAMETERS
+#############################
+import params  #import input file
+import mantle
+
+"""
+For sequential run, BASH Script
+Testing del_rho 
+"""
+#mman = np.int(sys.argv[1])
+#velocity = np.int(sys.argv[2])
+#rr=np.int(sys.argv[3]) # prints var1)
+
+#============================================================================
+experiment_number = params.experiment_number # for the .savefig title -- CHANGE to prevent overwriting
+velocity = params.velocity         # 4 20 40 60 80mm/year_
+nt = params.nt                 # nº of steps to run
+save_interval = params.save_interval        # save every n step
+save_figure = params.save_figure #True       # True or False
+plot_im_subplots = params.plot_im_subplots
+plot_check = params.plot_check 
+
+## Model domain setup
+h = params.h             # height of model box [m]
+w = params.w             # width of model box [m]
+dx = params.dx               # discretization step [m]
+dy = params.dy
+angle=params.angle
+alpha = np.deg2rad(angle)  # Subduction angle
+buoy_ylim=params.buoy_ylim
+box_moho = 0e3             # Moho depth (w.r.t model box) (crust/mantle) [m]
+hinge_ax = 350e3        # the starting point of deviation
+
+## Thermal parameters ##
+k_lith = params.k_lith  # Thermal conductivity [W/m.K]
+Cp = params.Cp  # Specific heat capacity[J/K*kg]
+kappa_lith = params.kappa_lith
+kappa_asth = params.kappa_asth
+#============================================================================
+## Mantle parameters from mantly.py
+mantle_type=mantle.mantle_type
+dlab=mantle.dlab 
+dmoho=mantle.dmoho
+Tlab=mantle.Tlab
+Tmoho=mantle.Tmoho
+Tbottom=mantle.Tbottom
+ref_depth_lith=mantle.ref_depth_lith
+ref_rho_lith=mantle.ref_rho_lith
+ref_P_lith=mantle.ref_P_lith
+ref_T_lith=mantle.ref_T_lith
+drhodT_lith=mantle.drhodT_lith
+drhodP_lith=mantle.drhodP_lith
+dT_lith=mantle.dT_lith
+ref_depth_asth=mantle.ref_depth_asth
+ref_rho_asth=mantle.ref_rho_asth
+dT_asth=mantle.dT_asth
+ref_P_asth=mantle.ref_P_asth
+ref_T_asth=mantle.ref_T_asth
+drhodT_asth=mantle.drhodT_asth
+drhodP_asth=mantle.drhodP_asth
+asth_tabel=mantle.asth_tabel
+lith_tabel=mantle.lith_tabel
+asth_tabel_atten_corr=V2RhoT_gibbs_lib.mantle_melt_atten_correction_Behn2009(asth_tabel,10,75,1)
+lith_tabel_atten_corr=V2RhoT_gibbs_lib.mantle_melt_atten_correction_Behn2009(lith_tabel,10,75,1)
+
+Vs_inter=mantle.ak135_Vs_inter
+Vp_inter=mantle.ak135_Vp_inter
+
+#============================================================================
+# Slice depth profile
+slice_pos1 = 20e3  # the position of the slice along x-axis in m
+slice_pos2 = hinge_ax-50e3
+slice_sec1 = int(slice_pos1 / dx)
+slice_sec2 = int(slice_pos2 / dx)
+slice_diff = 'no'  # yes or no for plotting differene in T and rho wrt initial
+x_profile=[]
+y_profile=[]
+for i in range(np.int(h/dy)+1):
+    x_profile.append(np.int(slice_sec2+(i/np.tan(alpha)))) #dx int(x_profile[i-1] + dy*np.tan(np.deg2rad(90- alpha)))
+    y_profile.append(np.int(i))
+y_plot=[]
+x_plot=[]
+for i in range(len(x_profile)):
+    x_plot.append(x_profile[i]*dx )
+for i in range(len(y_profile)):
+    y_plot.append(i*dy)
+#============================================================================
+## PLOT SETTING 
+# Visualisation parameters
+vel_vec = 'no'  # yes or no for showing velocity arrows
+lab_contour = 'yes'
+quiv_skip = 2  # velocity vector arrows spacing
+
+#============================================================================
+## PATH to files
+fig_path= os.getcwd()+'/data/%s_%s_vel%d/subplots/' % (experiment_number,mantle_type,velocity)
+dat_path= os.getcwd()+'/data/%s_%s_vel%d/' % (experiment_number,mantle_type,velocity)
+csv_path= os.getcwd()+'/csv/' 
+dir1 = os.path.expanduser(fig_path)
+dir2 = os.path.expanduser(dat_path)
+dir3 = os.path.expanduser(csv_path)
+if not os.path.exists(dir1):
+    os.makedirs(dir1)
+if not os.path.exists(dir2):
+    os.makedirs(dir2)
+if not os.path.exists(dir3):
+    os.makedirs(dir3)
+#============================================================================
+# Initialisation and setting up
+#============================================================================
+# Mesh setup:
+nx = (w / dx) + 1
+ny = (h / dy) + 1
+x = np.linspace(0, np.int(params.w), np.int(nx))  # array for the finite difference mesh
+y = np.linspace(0, np.int(params.h), np.int(ny))
+[xx, yy] = np.meshgrid(x, y)
+
+secinmyr = 1e6 * 365 * 24 * 3600   # amount of seconds in 1 Myr
+t = 0                 # set initial time to zero
+
+# Velocity definition
+# Define solid rotation velocity field:
+tau = 100 * secinmyr      # 100-Myr convection overturn period in seconds
+v0 = 2 * np.pi / tau       # angular velocity (in rad/sec)
+xh = xx + 0.5 * h          # x-distances to horz middle of mesh (on xx mesh)
+yh = yy + 0.5 * h
+vx = np.zeros(np.shape(xx))
+vy = np.zeros(np.shape(xx))
+
+slab_thickness = dlab-dmoho 
+#dT_lith=(Tlab-Tmoho)/(slab_thickness) 
+#dT_asth=(Tbottom-Tlab)/(h-dlab) 
+beg_depth = 0#np.int(dmoho/dy)
+dbottom = h
+k_asth = 1.9#(k_lith * dT_lith) / dT_asth
+
+# Velocity
+pres_vel = velocity * 1e-3 / (365 * 24 * 3600)
+# Vel. at dipping angle in the haning slab
+# Need resultant to be the same as the pres_vel so it needs to be splitted
+# into x- and z- component
+pres_vx = pres_vel * np.cos(alpha)
+pres_vy = pres_vel * np.sin(alpha)
+
+#============================================================================
+## Make temperature profile (1D)##
+[my, mx] = np.shape(xx)
+T_prof = np.ones((my, 1))
+
+T_prof[0:np.int(slab_thickness / dy) + 1] = np.reshape((Tmoho + dT_lith * \
+                                                            (yy[0:np.int(slab_thickness/ dy)+1 , 0])), \
+                                                            (np.int((slab_thickness + dy) / dy), 1))
+
+T_prof[np.int(slab_thickness / dy) + 1:np.int(h / dy) + 1] = np.reshape((T_prof[np.int(slab_thickness / dy)] + dT_asth * 
+                                                            (yy[np.int(slab_thickness/dy)+1:np.int(h/dy)+1, 0] - slab_thickness)), \
+                                                            (np.int((h+dy)/dy - (slab_thickness+dy)/dy),1))
+
+## Make density profile (1D) ##
+T = T_prof[:]
+rho_prof = np.ones((my, 1))
+P = np.ones((my, 1))
+
+
+Vs_prof = np.ones((my, 1))
+Vp_prof = np.ones((my, 1))
+for j in range(my):
+    if(yy[j, 0] >= box_moho and yy[j, 0] <= slab_thickness):
+        P[j] = (ref_rho_lith * 9.8 * yy[j, 0]) / 1e5
+        rho_prof[j] = ref_rho_lith+(T[j]-ref_T_lith)*drhodT_lith+(P[j]-ref_P_lith)*drhodP_lith   
+
+    if(yy[j, 0] > slab_thickness and yy[j, 0] <= h):
+        P[j] = (ref_rho_asth * 9.8 * yy[j, 0]) / 1e5
+        rho_prof[j] =  ref_rho_asth+(T[j]-ref_T_asth)*drhodT_asth+(P[j]-ref_P_asth)*drhodP_asth #  +
+    #Vs_prof[j] = Vs_inter(yy[j, 0]*1e-3)
+    #Vp_prof[j] = Vp_inter(yy[j, 0]*1e-3)
+
+
+## Make initial Vp and Vs distribustion (2D from 1D) 
+#Vs_init[0::, :] = Vs_prof[0::]
+#Vp_init[0::, :] = Vp_prof[0::]
+
+
+## Make initial temp. and density distribustion (2D) 
+rho_init = np.ones(np.shape(xx))
+T_init = np.ones(np.shape(xx))
+rho_init[0::, :] = rho_prof[0::]
+T_init[0::, :] = T_prof[0::]
+Vp_init = np.ones(np.shape(xx))
+Vs_init = np.ones(np.shape(xx))
+P_init = get_pressure(rho_init)
+Vp_init,Vs_init = get_VpVs_inti(P_init,T_init,asth_tabel,asth_tabel)
+
+drho_lab = int(rho_init[int((slab_thickness+dy)/dy),1] - rho_init[(int((slab_thickness)/dy)),1]) #int(rho_prof[np.where(yy==dlab)[0][-1]+1]) - int(rho_prof[np.where(yy==dlab)[0][-1]-1])
+print (drho_lab)
+
+yy_prep = yy[:,0]+dmoho
+dfout=np.zeros([len(yy_prep),3])
+dfout[:,0] = yy_prep[:]
+dfout[:,1] = T_init[:,0]
+dfout[:,2] = rho_init[:,0]
+
+print("T-profile saved in directory %s" % dir2)
+os.chdir(dir2)
+np.savetxt('Trho_%s_%s_vel_%d.txt' % (mantle_type, experiment_number,velocity),dfout,delimiter=',')
+
 #=============================================================================
 beta_dummy = 180 - ((np.rad2deg(alpha) / 2.0) + 90.0)
 beta = np.deg2rad(beta_dummy)
@@ -618,7 +658,6 @@ rho_adv_old = rho_adv_init.copy()
 rho_diffus_old = rho_diffus_init.copy()
 Vp_new = Vp_init.copy()
 Vs_new = Vs_init.copy()
-
 P_init = get_pressure(rho_init)  # initial dist. (bar)
 P_old = get_pressure(rho_init)  # preloop
 P_adv_old = get_pressure(rho_init)
@@ -627,7 +666,6 @@ P_diffus_old = get_pressure(rho_init)
 T_old2=T_init.copy()
 rho_old2=rho_init.copy()
 P_old2=P_init.copy()
-Vp_init,Vs_init = get_VpVs(P_old2,T_old2,table)
 ## Determine Courant timestep criterion:##
 vxmax = (abs(vx)).max()
 vymax = (abs(vy)).max()
@@ -691,7 +729,9 @@ for it in range(0, nt):
     rho_new = rho_adv_new.copy()
     T_new = T_adv_new.copy()
     P_new = get_pressure(rho_new)
-    Vp_new,Vs_new = get_VpVs(P_new,T_new,table)
+    Vp_new,Vs_new = get_VpVs(P_new,T_new,vy,lith_tabel)
+    #Vp_new,Vs_new = get_VpVs_inti(P_new,T_new,asth_tabel,lith_tabel)
+
     #Vs_new = get_VpVs(P_new,T_new,table)
     Vs_diff = (Vs_new - Vs_init)*100/Vs_init
     # Difference in density distribution #
@@ -884,7 +924,7 @@ for it in range(0, nt):
             
             # cbar.ax.invert_yaxis()
             ax5.plot(xs, ys, 'k', alpha=0.5)
-            cbar.ax.set_title('$%Vs$',fontsize=12)
+            cbar.ax.set_title('$Vs(%)$',fontsize=12)
             cbar.ax.tick_params(labelsize=12) 
             ax5.set_title(mantle_type+ r" $\Delta \rho$"+', t=' + str("%.2f" % tmyrs) + ' Myr, tstep =' +
                           str(it + 1) + ', v=' + str(velocity) + '$mm$ $yr^{-1}$'+
