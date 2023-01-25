@@ -606,7 +606,7 @@ T_init[0::, :] = T_prof[0::]
 Vp_init = np.ones(np.shape(xx))
 Vs_init = np.ones(np.shape(xx))
 P_init = get_pressure(rho_init)
-Vp_init,Vs_init = get_VpVs_inti(P_init,T_init,asth_tabel,asth_tabel)
+Vp_init,Vs_init = get_VpVs_inti(P_init,T_init,asth_tabel_atten_corr,lith_tabel_atten_corr)
 
 drho_lab = int(rho_init[int((slab_thickness+dy)/dy),1] - rho_init[(int((slab_thickness)/dy)),1]) #int(rho_prof[np.where(yy==dlab)[0][-1]+1]) - int(rho_prof[np.where(yy==dlab)[0][-1]-1])
 print (drho_lab)
@@ -729,7 +729,7 @@ for it in range(0, nt):
     rho_new = rho_adv_new.copy()
     T_new = T_adv_new.copy()
     P_new = get_pressure(rho_new)
-    Vp_new,Vs_new = get_VpVs(P_new,T_new,vy,lith_tabel)
+    Vp_new,Vs_new = get_VpVs(P_new,T_new,vy,lith_tabel_atten_corr)
     #Vp_new,Vs_new = get_VpVs_inti(P_new,T_new,asth_tabel,lith_tabel)
 
     #Vs_new = get_VpVs(P_new,T_new,table)
